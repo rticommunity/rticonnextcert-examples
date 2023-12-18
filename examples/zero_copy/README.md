@@ -1,4 +1,4 @@
-# C Hello World w/ Zero Copy Example
+# "Hello World" using the Cert Zero Copy Transport
 
 This repo provides an example publication and subscription pair of applications to send and receive a simple user-defined `HelloWorld` type. This example uses Dynamic Participant Static Endpoint (DPSE) discovery over a statically configured UDP transport. User data is communicated over Shared Memory using the Zero Copy Transport. 
 
