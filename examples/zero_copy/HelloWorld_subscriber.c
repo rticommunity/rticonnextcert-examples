@@ -54,11 +54,11 @@ HelloWorldSubscriber_on_data_available(void *listener_data, DDS_DataReader *read
 
         if (retcode == DDS_RETCODE_NO_DATA)
         {
-            /* If this is the first time through the loop and there are no 
-             * Samples available, then an INFO message is written to the 
-             * console. However, we may pass through this loop multiple times 
+            /* If this is the first time through the loop and there are no
+             * Samples available, then an INFO message is written to the
+             * console. However, we may pass through this loop multiple times
              * if there are more than TAKE_MAX_SAMPLES Samples available-- don't
-             * output a message in the case that we are simply done reading a 
+             * output a message in the case that we are simply done reading a
              * larger batch of Samples.
              */
             if (samples_taken == 0)
@@ -248,17 +248,17 @@ main(int argc, char **argv)
                 printf("ERROR: -domain <domain_id>\n");
                 return EXIT_FAILURE;
             }
-            /* The value of a DDS Domain ID is held in a signed 32-bit integer, 
-             * and the range of valid values is in fact only in the hundreds.           
+            /* The value of a DDS Domain ID is held in a signed 32-bit integer,
+             * and the range of valid values is in fact only in the hundreds.
              * For that reason, this conversion is safe.
              */
             long l = strtol(argv[i], NULL, 0);
-            if (l <= INT_MAX) 
+            if (l <= INT_MAX)
             {
                 domain_id = (DDS_DomainId_t)l;
             }
-            else 
-            { 
+            else
+            {
                 return EXIT_FAILURE;
             }
         }
