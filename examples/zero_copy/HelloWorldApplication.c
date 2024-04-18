@@ -105,10 +105,11 @@ Application_create(
 
     struct DPSE_DiscoveryPluginProperty discovery_plugin_properties =
             DPSE_DiscoveryPluginProperty_INITIALIZER;
+    struct DDS_Duration_t my_lease = {5,0};
+    struct DDS_Duration_t my_assert_period = {2,0};
+    discovery_plugin_properties.participant_liveliness_lease_duration = my_lease;
+    discovery_plugin_properties.participant_liveliness_assert_period = my_assert_period;
 
-    /* Uncomment to increase verbosity level:
-       OSAPI_Log_set_verbosity(OSAPI_LOG_VERBOSITY_WARNING);
-     */
     application = (struct Application *)malloc(sizeof(struct Application));
 
     if (application == NULL)
@@ -256,13 +257,13 @@ Application_create(
             DDS_String_dup("notif");
     *DDS_StringSeq_get_reference(&dp_qos.transports.enabled_transports, 1) =
             DDS_String_dup(NETIO_DEFAULT_UDP_NAME);
-    
+
     /* Discovery takes place over UDP */
     DDS_StringSeq_set_maximum(&dp_qos.discovery.enabled_transports, 1);
     DDS_StringSeq_set_length(&dp_qos.discovery.enabled_transports, 1);
     *DDS_StringSeq_get_reference(&dp_qos.discovery.enabled_transports, 0) =
             DDS_String_dup("_udp://");
-    
+
     /* User data uses Notification Transport */
     DDS_StringSeq_set_maximum(&dp_qos.user_traffic.enabled_transports, 1);
     DDS_StringSeq_set_length(&dp_qos.user_traffic.enabled_transports, 1);
