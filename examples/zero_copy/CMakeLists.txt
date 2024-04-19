@@ -13,7 +13,7 @@ cmake_minimum_required(VERSION 3.1)
 PROJECT(HelloWorld C)
 set(SOURCE_EXTENSION_C c)
 
-if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+if ($ENV{RTIMEARCH} STREQUAL "x86_64leElfgcc7.3.0CERT-Linux4")
     SET(PLATFORM_LIBS pthread rt)
     add_definitions(-DRTI_UNIX -DRTI_LINUX)
 endif()
@@ -24,7 +24,8 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/objs/${RTIME_TARG
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/objs/${RTIME_TARGET_NAME})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/objs/${RTIME_TARGET_NAME})
 
-set(RTI_LIB_PREFIX rti_me)
+set(RTI_LIB_PREFIX "rti_me")
+set(RTI_LIB_SUFFIX_PSL "_psl")
 set(RTI_LIB_SUFFIX)
 
 if (${CMAKE_BUILD_TYPE} MATCHES "[Rr]elease")
@@ -32,7 +33,9 @@ if (${CMAKE_BUILD_TYPE} MATCHES "[Rr]elease")
     set(RTI_DEBUG_BUILD FALSE)
     add_definitions(-DNDEBUG)
 else()
-    message(FATAL_ERROR "Connext Cert only supports the 'Release' build type")
+    set(RTI_LIB_SUFFIX "zd")
+    set(RTI_DEBUG_BUILD TRUE)
+    #message(FATAL_ERROR "Connext Cert only supports the 'Release' build type")
 endif()
 
 set(IDL_GEN_C
@@ -46,27 +49,41 @@ set(IDL_GEN_H
     ${CMAKE_CURRENT_SOURCE_DIR}/HelloWorldSupport.h
 )
 
-SET(CERT_C_LIBS ${RTI_LIB_PREFIX}${RTI_LIB_SUFFIX})
+SET(CERT_LIB_PIL ${RTI_LIB_PREFIX}${RTI_LIB_SUFFIX})
+SET(CERT_LIB_PSL ${RTI_LIB_PREFIX}${RTI_LIB_SUFFIX_PSL}${RTI_LIB_SUFFIX})
 SET(CERT_ZERO_COPY_LIBS ${RTI_LIB_PREFIX}_netiozcopy${RTI_LIB_SUFFIX})
-ADD_DEFINITIONS(-DRTI_CERT)
+ADD_DEFINITIONS(-DRTI_CERT -DRTI_PIL)
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
+    $ENV{RTIMEHOME}/include/rti_me/rti_me_psl
     $ENV{RTIMEHOME}/include/rti_me
 )
-link_directories($ENV{RTIMEHOME}/lib/${RTIME_TARGET_NAME})
-
+link_directories(
+    $ENV{RTIMEHOME}/lib/$ENV{RTIMEARCH}
+    $ENV{RTIMEHOME}/lib/$ENV{RTIMEARCH}-$ENV{RTIMEOS}
+)
+message($ENV{RTIMEHOME}/lib/$ENV{RTIMEARCH})
+message($ENV{RTIMEHOME}/lib/$ENV{RTIMEARCH}-$ENV{RTIMEOS})
+message(${CMAKE_C_FLAGS})
 ################################################################################
 # HelloWorld_subscriber
 ################################################################################
-add_executable(HelloWorld_subscriber 
+add_executable(HelloWorld_subscriber
     ${CMAKE_CURRENT_SOURCE_DIR}/HelloWorld_subscriber.${SOURCE_EXTENSION_C}
     ${CMAKE_CURRENT_SOURCE_DIR}/HelloWorldApplication.${SOURCE_EXTENSION_C}
     ${IDL_GEN_C}
     ${IDL_GEN_H}
 )
 
-target_link_libraries(HelloWorld_subscriber ${CERT_ZERO_COPY_LIBS} ${CERT_C_LIBS} ${PLATFORM_LIBS})
+target_link_libraries(
+    HelloWorld_subscriber
+    ${CERT_LIB_PSL}
+    ${PLATFORM_LIBS}
+    ${CERT_LIB_PIL}
+    ${CERT_ZERO_COPY_LIBS}
+    ${CERT_LIB_PSL}
+)
 
 ################################################################################
 # HelloWorld_publisher
@@ -78,6 +95,12 @@ add_executable(HelloWorld_publisher
     ${IDL_GEN_H}
 )
 
-target_link_libraries(HelloWorld_publisher ${CERT_ZERO_COPY_LIBS} ${CERT_C_LIBS} ${PLATFORM_LIBS})
-
+target_link_libraries(
+    HelloWorld_publisher
+    ${CERT_LIB_PSL}
+    ${PLATFORM_LIBS}
+    ${CERT_LIB_PIL}
+    ${CERT_ZERO_COPY_LIBS}
+    ${CERT_LIB_PSL}
+)
 
