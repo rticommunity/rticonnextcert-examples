@@ -18,7 +18,6 @@
 #include "wh_sm/wh_sm_history.h"
 #include "rh_sm/rh_sm_history.h"
 #include "disc_dpse/disc_dpse_dpsediscovery.h"
-#include "netio_zcopy/posixNotifMechanism.h"
 
 #include "HelloWorld.h"
 #include "HelloWorldSupport.h"

@@ -21,11 +21,12 @@
 #include "HelloWorldSupport.h"
 #include "wh_sm/wh_sm_history.h"
 #include "rh_sm/rh_sm_history.h"
-#include "netio/netio_udp.h"
+#include "netio/netio_psl_udp.h"
+#include "netio_dgram/netio_dgram.h"
 #include "netio_zcopy/netio_zcopy.h"
 
-/* User's notification mechanism's implementation */
-#include "netio_zcopy/posixNotifMechanism.h"
+/* PSL notification mechanism's implementation */
+#include "netio/netio_mynotif.h"
 
 /* forward declarations (for gcc -Wmissing-declarations)*/
 void
@@ -114,7 +115,7 @@ Application_create(
 
     if (application == NULL)
     {
-        printf("failed to allocate application\n");
+        printf("ERROR: Failed to malloc for application\n");
         goto done;
     }
 
@@ -133,14 +134,7 @@ Application_create(
                 NULL,
                 NULL))
     {
-        printf("failed to register rh\n");
-        goto done;
-    }
-
-    /* Configure UDP transport's allowed interfaces */
-    if (!RT_Registry_unregister(registry, NETIO_DEFAULT_UDP_NAME, NULL, NULL))
-    {
-        printf("failed to unregister udp\n");
+        printf("ERROR: Failed to register rh\n");
         goto done;
     }
 
@@ -148,7 +142,7 @@ Application_create(
             sizeof(struct UDP_InterfaceFactoryProperty));
     if (udp_property == NULL)
     {
-        printf("failed to allocate udp properties\n");
+        printf("ERROR: Failed to allocate udp properties\n");
         goto done;
     }
     *udp_property = UDP_INTERFACE_FACTORY_PROPERTY_DEFAULT;
@@ -158,12 +152,12 @@ Application_create(
     */
     if (!DDS_StringSeq_set_maximum(&udp_property->allow_interface, 1))
     {
-        printf("failed to set allow_interface maximum\n");
+        printf("ERROR: Failed to set allow_interface maximum\n");
         goto done;
     }
     if (!DDS_StringSeq_set_length(&udp_property->allow_interface, 1))
     {
-        printf("failed to set allow_interface length\n");
+        printf("ERROR: Failed to set allow_interface length\n");
         goto done;
     }
 
@@ -187,23 +181,19 @@ Application_create(
                 "lo",
                 UDP_INTERFACE_INTERFACE_UP_FLAG | UDP_INTERFACE_INTERFACE_MULTICAST_FLAG))
     {
-        printf("failed to add interface\n");
+        printf("ERROR: Failed to add interface\n");
     }
 
-    if (!RT_Registry_register(
-                registry,
-                NETIO_DEFAULT_UDP_NAME,
-                UDP_InterfaceFactory_get_interface(),
-                (struct RT_ComponentFactoryProperty *)udp_property,
-                NULL))
+    /* Register PSL UDP interface */
+    if (!UDP_Interface_register(registry, NETIO_DEFAULT_UDP_NAME, udp_property))
     {
-        printf("failed to register udp\n");
+        printf("ERROR: Failed to register udp\n");
         goto done;
     }
 
     if (!NDDS_Transport_ZeroCopy_initialize(registry, NULL, NULL))
     {
-        printf("failed to initialize zero copy\n");
+        printf("ERROR: Failed to initialize zero copy\n");
         goto done;
     }
 
@@ -212,7 +202,7 @@ Application_create(
     notif_prop.max_samples_per_notif = 1;
     if (!ZCOPY_NotifMechanism_register(registry, NETIO_DEFAULT_NOTIF_NAME, &notif_prop))
     {
-        printf("failed to register notif\n");
+        printf("ERROR: Failed to register notif\n");
         goto done;
     }
 
@@ -232,24 +222,24 @@ Application_create(
                 &discovery_plugin_properties._parent,
                 NULL))
     {
-        printf("failed to register dpse\n");
+        printf("ERROR: Failed to register dpse\n");
         goto done;
     }
 
     if (!RT_ComponentFactoryId_set_name(&dp_qos.discovery.discovery.name, "dpse"))
     {
-        printf("failed to set discovery plugin name\n");
+        printf("ERROR: Failed to set discovery plugin name\n");
         goto done;
     }
 
     if (!DDS_StringSeq_set_maximum(&dp_qos.transports.enabled_transports, 2))
     {
-        printf("failed to set transports.enabled_transports maximum\n");
+        printf("ERROR: Failed to set transports.enabled_transports maximum\n");
         goto done;
     }
     if (!DDS_StringSeq_set_length(&dp_qos.transports.enabled_transports, 2))
     {
-        printf("failed to set transports.enabled_transports length\n");
+        printf("ERROR: Failed to set transports.enabled_transports length\n");
         goto done;
     }
     /* UDP and Notification are enabled*/
@@ -299,17 +289,17 @@ Application_create(
 
     if (application->participant == NULL)
     {
-        printf("failed to create participant\n");
+        printf("ERROR: Failed to create participant\n");
         goto done;
     }
 
-    sprintf(application->type_name, "HelloWorld");
+    sprintf(application->type_name, HelloWorldTypeSupport_get_type_name());
     retcode = HelloWorldTypeSupport_register_type(
             application->participant,
             application->type_name);
     if (retcode != DDS_RETCODE_OK)
     {
-        printf("failed to register type: %s\n", "test_type");
+        printf("ERROR: Failed to register type: %s\n", "test_type");
         goto done;
     }
 
@@ -328,7 +318,7 @@ Application_create(
 
     if (application->topic == NULL)
     {
-        printf("topic == NULL\n");
+        printf("ERROR: topic == NULL\n");
         goto done;
     }
 
@@ -337,7 +327,7 @@ Application_create(
             remote_participant_name);
     if (retcode != DDS_RETCODE_OK)
     {
-        printf("failed to assert remote participant\n");
+        printf("ERROR: Failed to assert remote participant\n");
         goto done;
     }
 
@@ -369,7 +359,7 @@ Application_enable(struct Application *application)
     retcode = DDS_Entity_enable(entity);
     if (retcode != DDS_RETCODE_OK)
     {
-        printf("failed to enable entity\n");
+        printf("ERROR: Failed to enable entity\n");
     }
 
     return retcode;
