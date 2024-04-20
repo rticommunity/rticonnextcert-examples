@@ -37,37 +37,8 @@ endif
 
 # Default architecture is 32 bits
 M_FLAG=-m32
-ifneq ($(findstring x64,$(RTIMEARCH)),)
+ifneq ($(findstring x86_64,$(RTIMEARCH)),)
         M_FLAG=-m64
-endif
-
-ifneq ($(findstring Darwin,$(RTIMEARCH)),)
-        ARCH_LIBS=
-        CFLAGS = $(M_FLAG) -std=c99
-        LFLAGS = $(M_FLAG)
-        CC = gcc
-        DEFINES = -DRTI_UNIX -DRTI_DARWIN -DRTI_POSIX_THREADS
-endif
-ifneq ($(findstring Linux,$(RTIMEARCH)),)
-        ARCH_LIBS=-ldl -lnsl -lm -lpthread -lrt
-        CFLAGS = $(M_FLAG) -std=c99
-        LFLAGS = $(M_FLAG) -static-libgcc
-        CC = gcc
-        DEFINES = -DRTI_UNIX -DRTI_LINUX -DRTI_POSIX_THREADS
-endif
-ifneq ($(findstring QOS,$(RTIMEARCH)),)
-        ARCH_LIBS= -lsocket
-        CFLAGS = -Y_gpp -std=c99 -fstrict-aliasing
-        LFLAGS =
-        CC = $(QNX_HOST)/usr/bin/qcc -Vgcc/8.3.0,gcc_ntoaarch64le
-        DEFINES = -DRTI_UNIX
-endif
-ifneq ($(findstring sparc,$(RTIMEARCH)),)
-        ARCH_LIBS=-ldl -lnsl -lgenIO -lsocket -lgen -lposix4 -lpthread -lm -lc
-        CFLAGS = $(M_FLAG)
-        LFLAGS = $(M_FLAG)
-        CC = gcc
-        DEFINES = -DRTI_UNIX -DRTI_SOLARIS -DRTI_POSIX_THREADS
 endif
 
 ifeq ($(DEBUG),Y)
@@ -80,9 +51,32 @@ else
 LIBSUFFIX=z$(LIBSUFFIX_DEBUG)
 endif
 
-INCLUDES = -I. -I$(RTIMEHOME)/include -I$(RTIMEHOME)/include/rti_me
+ARCH_LIBS= -lm
 
-LIBS = -L$(RTIMEHOME)/lib/${RTIMEARCH} -lrti_me_netiozcopy$(LIBSUFFIX) -lrti_me$(LIBSUFFIX) $(ARCH_LIBS)
+ifneq ($(findstring Darwin,$(RTIMEOS)),)
+        CFLAGS = $(M_FLAG) -std=c99
+        LFLAGS = $(M_FLAG)
+        CC = gcc
+        DEFINES = -DRTI_UNIX -DRTI_DARWIN -DRTI_POSIX_THREADS
+endif
+ifneq ($(findstring Linux,$(RTIMEOS)),)
+        ARCH_LIBS+=-ldl -lnsl -lpthread -lrt
+        CFLAGS = $(M_FLAG) -std=c99
+        LFLAGS = $(M_FLAG) -static-libgcc
+        CC = gcc
+        DEFINES = -DRTI_UNIX -DRTI_LINUX -DRTI_POSIX_THREADS
+endif
+DEFINES += -DRTI_PIL -DOSAPI_CC_DEF_H=osapi_cc_gcc.h -DRTI_CERT -DNDEBUG
+
+INCLUDES = -I$(RTIMEHOME)/include/rti_me/rti_me_psl -I$(RTIMEHOME)/include/rti_me
+
+PSL_LIB=-L$(RTIMEHOME)/lib/$(RTIMEARCH)-$(RTIMEOS) -lrti_me_psl$(LIBSUFFIX)
+PIL_LIB=-L$(RTIMEHOME)/lib/${RTIMEARCH} -lrti_me_netiozcopy$(LIBSUFFIX) -lrti_me$(LIBSUFFIX)
+
+LIBS = $(PSL_LIB) $(ARCH_LIBS) $(PIL_LIB) $(PSL_LIB)
+# LIBS = $(PSL_LIB) $(ARCH_LIBS) $(PIL_LIB)
+# LIBS = $(ARCH_LIBS) $(PSL_LIB) $(PIL_LIB)
+# LIBS = $(ARCH_LIBS) $(PIL_LIB) $(PSL_LIB)
 
 COMMONSRCS    = HelloWorld.c HelloWorldPlugin.c HelloWorldSupport.c HelloWorldApplication.c
 IDL_HEADERS   = HelloWorld.h HelloWorldPlugin.h HelloWorldSupport.h
@@ -168,7 +162,6 @@ ifneq ($(findstring ppc604Vx6.9gcc4.3.3,$(RTIMEARCH)),)
 		OUTCOMMAND = $(LD) -r -o $@ $(@:%.${OUTSUFFIX}=%.o) $(COMMONOBJS) $(LIBS)
 	endif
 
-
 	ifeq ($(validHost),)
 	    OS = $(shell uname)
             $(error Invalid host $(OS) for target $(RTIMEARCH))
@@ -218,7 +211,7 @@ objs/${RTIMEARCH}/%.${OUTSUFFIX} : objs/${RTIMEARCH}/%.o
 	${OUTCOMMAND}
 
 objs/${RTIMEARCH}/%.o : %.c
-	${CC} ${CFLAGS}  -o $@ $(DEFINES) -DRTI_CERT -DNDEBUG $(INCLUDES) -c $<
+	${CC} ${CFLAGS}  -o $@ $(DEFINES) $(INCLUDES) -c $<
 
 # Rule to rebuild the generated files when the .idl file change
 $(IDL_SRCS) $(IDL_HEADERS): HelloWorld.idl
