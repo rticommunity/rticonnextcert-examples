@@ -15,7 +15,7 @@ set(SOURCE_EXTENSION_C c)
 
 if ($ENV{RTIMEARCH} STREQUAL "x86_64leElfgcc7.3.0CERT-Linux4")
     SET(PLATFORM_LIBS pthread rt)
-    add_definitions(-DRTI_UNIX -DRTI_LINUX)
+    add_definitions(-DRTI_UNIX -DRTI_LINUX -D_POSIX_C_SOURCE=199309L)
 endif()
 
 set_property(GLOBAL PROPERTY RULE_MESSAGES OFF)
