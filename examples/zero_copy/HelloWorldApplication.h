@@ -16,11 +16,12 @@
 #include <time.h>
 #include "rti_me_c.h"
 
+#define HW_MAX_NAME_LENGTH 255
 struct Application
 {
     DDS_DomainParticipant *participant;
-    char topic_name[255];
-    char type_name[255];
+    char topic_name[HW_MAX_NAME_LENGTH];
+    char type_name[HW_MAX_NAME_LENGTH];
     long int period;
     long int count;
     DDS_Topic *topic;

@@ -91,19 +91,23 @@ Application_create(
         long int count)
 {
     DDS_ReturnCode_t retcode;
-    DDS_DomainParticipantFactory *factory = NULL;
+    DDS_Boolean success = DDS_BOOLEAN_FALSE;
+
+    DDS_DomainParticipantFactory *dp_factory = NULL;
     struct DDS_DomainParticipantFactoryQos dpf_qos =
             DDS_DomainParticipantFactoryQos_INITIALIZER;
     struct DDS_DomainParticipantQos dp_qos = DDS_DomainParticipantQos_INITIALIZER;
-    DDS_Boolean success = DDS_BOOLEAN_FALSE;
-    struct Application *application = NULL;
     RT_Registry_T *registry = NULL;
-    struct UDP_InterfaceFactoryProperty *udp_property = NULL;
+
+    /* UDP and Zero Copy related */
+    Udpv4_TransportProperties_T *udp_property = NULL;
+    struct NETIO_DGRAM_InterfaceI* UDP_DgramIntf = NULL;
     struct ZCOPY_NotifInterfaceFactoryProperty notif_prop =
             ZCOPY_NotifInterfaceFactoryProperty_INITIALIZER;
     struct ZCOPY_NotifMechanismProperty notif_mech_prop =
             ZCOPY_NotifMechanismProperty_INITIALIZER;
 
+    /* discovery related */
     struct DPSE_DiscoveryPluginProperty discovery_plugin_properties =
             DPSE_DiscoveryPluginProperty_INITIALIZER;
     struct DDS_Duration_t my_lease = {5,0};
@@ -111,8 +115,10 @@ Application_create(
     discovery_plugin_properties.participant_liveliness_lease_duration = my_lease;
     discovery_plugin_properties.participant_liveliness_assert_period = my_assert_period;
 
-    application = (struct Application *)malloc(sizeof(struct Application));
+    /* application specific */
+    struct Application *application = NULL;
 
+    application = (struct Application *)malloc(sizeof(struct Application));
     if (application == NULL)
     {
         printf("ERROR: Failed to malloc for application\n");
@@ -122,10 +128,8 @@ Application_create(
     application->period = period;
     application->count = count;
 
-    factory = DDS_DomainParticipantFactory_get_instance();
-
-    registry = DDS_DomainParticipantFactory_get_registry(
-            DDS_DomainParticipantFactory_get_instance());
+    dp_factory = DDS_DomainParticipantFactory_get_instance();
+    registry = DDS_DomainParticipantFactory_get_registry(dp_factory);
 
     if (!RT_Registry_register(
                 registry,
@@ -138,35 +142,10 @@ Application_create(
         goto done;
     }
 
-    udp_property = (struct UDP_InterfaceFactoryProperty *)malloc(
-            sizeof(struct UDP_InterfaceFactoryProperty));
-    if (udp_property == NULL)
-    {
-        printf("ERROR: Failed to allocate udp properties\n");
-        goto done;
-    }
-    *udp_property = UDP_INTERFACE_FACTORY_PROPERTY_DEFAULT;
-
-    /* For additional allowed interface(s), increase maximum and length, and
-       set interface below:
-    */
-    if (!DDS_StringSeq_set_maximum(&udp_property->allow_interface, 1))
-    {
-        printf("ERROR: Failed to set allow_interface maximum\n");
-        goto done;
-    }
-    if (!DDS_StringSeq_set_length(&udp_property->allow_interface, 1))
-    {
-        printf("ERROR: Failed to set allow_interface length\n");
-        goto done;
-    }
-
-    /* loopback interface */
-    *DDS_StringSeq_get_reference(&udp_property->allow_interface, 0) =
-            DDS_String_dup("lo");
+    udp_property = UDPv4_TransportProperties_new();
 
     /* This function takes the following arguments:
-     * Param 1 is the iftable in the UDP property
+     * Param 1 is the UDP property
      * Param 2 is the IP address of the interface in host order
      * Param 3 is the Netmask of the interface
      * Param 4 is the name of the interface
@@ -174,18 +153,27 @@ Application_create(
      *      UDP_INTERFACE_INTERFACE_UP_FLAG - Interface is up
      *      UDP_INTERFACE_INTERFACE_MULTICAST_FLAG - Interface supports multicast
      */
-    if (!UDP_InterfaceTable_add_entry(
-                &udp_property->if_table,
+    if (!UDPv4_InterfaceTable_add_entry(
+                udp_property,
                 0x7f000001,
                 0xff000000,
                 "lo",
-                UDP_INTERFACE_INTERFACE_UP_FLAG | UDP_INTERFACE_INTERFACE_MULTICAST_FLAG))
+                UDP_INTERFACE_INTERFACE_UP_FLAG |
+                UDP_INTERFACE_INTERFACE_MULTICAST_FLAG))
     {
         printf("ERROR: Failed to add interface\n");
     }
 
-    /* Register PSL UDP interface */
-    if (!UDP_Interface_register(registry, NETIO_DEFAULT_UDP_NAME, udp_property))
+    if(!UDP_Interface_leak_NETIO_DGRAM_InterfaceI(&UDP_DgramIntf))
+    {
+        printf("ERROR: Failed to get UDP DGRAM interface\n");
+    }
+
+    if (!NETIO_DGRAM_InterfaceFactory_register(
+            registry,
+            NETIO_DEFAULT_UDP_NAME,
+            UDP_DgramIntf,
+            udp_property))
     {
         printf("ERROR: Failed to register udp\n");
         goto done;
@@ -206,9 +194,9 @@ Application_create(
         goto done;
     }
 
-    DDS_DomainParticipantFactory_get_qos(factory, &dpf_qos);
+    DDS_DomainParticipantFactory_get_qos(dp_factory, &dpf_qos);
     dpf_qos.entity_factory.autoenable_created_entities = DDS_BOOLEAN_FALSE;
-    DDS_DomainParticipantFactory_set_qos(factory, &dpf_qos);
+    DDS_DomainParticipantFactory_set_qos(dp_factory, &dpf_qos);
 
     if (peer == NULL)
     {
@@ -281,7 +269,7 @@ Application_create(
     strcpy(dp_qos.participant_name.name, local_participant_name);
 
     application->participant = DDS_DomainParticipantFactory_create_participant(
-            factory,
+            dp_factory,
             domain_id,
             &dp_qos,
             NULL,
@@ -293,7 +281,8 @@ Application_create(
         goto done;
     }
 
-    sprintf(application->type_name, HelloWorldTypeSupport_get_type_name());
+    strncpy(application->type_name, HelloWorldTypeSupport_get_type_name(),
+            strlen(HelloWorldTypeSupport_get_type_name()));
     retcode = HelloWorldTypeSupport_register_type(
             application->participant,
             application->type_name);
