@@ -21,12 +21,13 @@
 #include "HelloWorldSupport.h"
 #include "wh_sm/wh_sm_history.h"
 #include "rh_sm/rh_sm_history.h"
-#include "netio/netio_psl_udp.h"
-#include "netio_dgram/netio_dgram.h"
 #include "netio_zcopy/netio_zcopy.h"
 
-/* PSL notification mechanism's implementation */
+/* PSL implementations of Notif mechanism and UDP */
 #include "netio/netio_mynotif.h"
+#include "netio/netio_psl_udp.h"
+
+const char* const MY_UDP_NAME = "_udp";
 
 /* forward declarations (for gcc -Wmissing-declarations)*/
 void
@@ -101,7 +102,6 @@ Application_create(
 
     /* UDP and Zero Copy related */
     Udpv4_TransportProperties_T *udp_property = NULL;
-    struct NETIO_DGRAM_InterfaceI* UDP_DgramIntf = NULL;
     struct ZCOPY_NotifInterfaceFactoryProperty notif_prop =
             ZCOPY_NotifInterfaceFactoryProperty_INITIALIZER;
     struct ZCOPY_NotifMechanismProperty notif_mech_prop =
@@ -164,16 +164,7 @@ Application_create(
         printf("ERROR: Failed to add interface\n");
     }
 
-    if(!UDP_Interface_leak_NETIO_DGRAM_InterfaceI(&UDP_DgramIntf))
-    {
-        printf("ERROR: Failed to get UDP DGRAM interface\n");
-    }
-
-    if (!NETIO_DGRAM_InterfaceFactory_register(
-            registry,
-            NETIO_DEFAULT_UDP_NAME,
-            UDP_DgramIntf,
-            udp_property))
+    if (!Udpv4_Interface_register(registry, MY_UDP_NAME, udp_property))
     {
         printf("ERROR: Failed to register udp\n");
         goto done;
@@ -234,7 +225,7 @@ Application_create(
     *DDS_StringSeq_get_reference(&dp_qos.transports.enabled_transports, 0) =
             DDS_String_dup("notif");
     *DDS_StringSeq_get_reference(&dp_qos.transports.enabled_transports, 1) =
-            DDS_String_dup(NETIO_DEFAULT_UDP_NAME);
+            DDS_String_dup(MY_UDP_NAME);
 
     /* Discovery takes place over UDP */
     DDS_StringSeq_set_maximum(&dp_qos.discovery.enabled_transports, 1);
