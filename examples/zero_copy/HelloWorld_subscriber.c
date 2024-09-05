@@ -33,69 +33,52 @@ HelloWorldSubscriber_on_data_available(void *listener_data, DDS_DataReader *read
     HelloWorld *sample = NULL;
     struct DDS_SampleInfoSeq info_seq = DDS_SEQUENCE_INITIALIZER;
     struct HelloWorldSeq sample_seq = DDS_SEQUENCE_INITIALIZER;
-    const DDS_Long TAKE_MAX_SAMPLES = 32;
 
     (void)listener_data;
 
     printf("INFO: Sample received\n");
-    DDS_Long samples_taken = 0;
 
-    do
+    retcode = HelloWorldDataReader_take(
+            hw_reader,
+            &sample_seq,
+            &info_seq,
+            DDS_LENGTH_UNLIMITED,
+            DDS_ANY_SAMPLE_STATE,
+            DDS_ANY_VIEW_STATE,
+            DDS_ANY_INSTANCE_STATE);
+
+    if (retcode == DDS_RETCODE_NO_DATA)
     {
-        retcode = HelloWorldDataReader_take(
-                hw_reader,
-                &sample_seq,
-                &info_seq,
-                TAKE_MAX_SAMPLES,
-                DDS_ANY_SAMPLE_STATE,
-                DDS_ANY_VIEW_STATE,
-                DDS_ANY_INSTANCE_STATE);
+        printf("INFO: No data available\n");
+        return;
+    }
+    else if (retcode != DDS_RETCODE_OK)
+    {
+        printf("ERROR: take() failed with retcode %d\n", retcode);
+        return;
+    }
 
-        if (retcode == DDS_RETCODE_NO_DATA)
+    /* Print each valid sample taken */
+    for (int i = 0; i < HelloWorldSeq_get_length(&sample_seq); ++i)
+    {
+        sample_info = DDS_SampleInfoSeq_get_reference(&info_seq, i);
+
+        if (sample_info->valid_data)
         {
-            /* If this is the first time through the loop and there are no
-             * Samples available, then an INFO message is written to the
-             * console. However, we may pass through this loop multiple times
-             * if there are more than TAKE_MAX_SAMPLES Samples available-- don't
-             * output a message in the case that we are simply done reading a
-             * larger batch of Samples.
-             */
-            if (samples_taken == 0)
-            {
-                printf("INFO: No data available\n");;
-            }
-            continue;
+            sample = HelloWorldSeq_get_reference(&sample_seq, i);
+            printf("\tid : %d data[0]: %d, instance_state is 0x%02x\n",
+                    sample->id,
+                    sample->data[0],
+                    sample_info->instance_state);
         }
-        else if (retcode != DDS_RETCODE_OK)
+        else
         {
-            printf("ERROR: take() failed with retcode %d\n", retcode);
-            continue;
+            printf("\tINVALID DATA: instance_state is 0x%02x\n",
+                    sample_info->instance_state);
         }
+    }
+    HelloWorldDataReader_return_loan(hw_reader, &sample_seq, &info_seq);
 
-        /* Print each valid sample taken */
-        for (int i = 0; i < HelloWorldSeq_get_length(&sample_seq); ++i)
-        {
-            sample_info = DDS_SampleInfoSeq_get_reference(&info_seq, i);
-
-            if (sample_info->valid_data)
-            {
-                sample = HelloWorldSeq_get_reference(&sample_seq, i);
-                printf("\tid : %d data[0]: %d, instance_state is 0x%02x\n",
-                        sample->id,
-                        sample->data[0],
-                        sample_info->instance_state);
-            }
-            else
-            {
-                printf("INFO: Sample received\n\tINVALID DATA, "
-                        "instance_state is 0x%02x\n",
-                        sample_info->instance_state);
-            }
-
-            samples_taken++;
-        }
-        HelloWorldDataReader_return_loan(hw_reader, &sample_seq, &info_seq);
-    } while (DDS_RETCODE_OK == retcode);
 }
 
 static void
@@ -162,13 +145,13 @@ subscriber_main_w_args(
     dr_listener.on_subscription_matched = HelloWorldSubscriber_on_subscription_matched;
 
     dr_qos.resource_limits.max_instances = 2;
-    dr_qos.resource_limits.max_samples_per_instance = 100;
+    dr_qos.resource_limits.max_samples_per_instance = 4;
     dr_qos.resource_limits.max_samples = dr_qos.resource_limits.max_instances *
                                          dr_qos.resource_limits.max_samples_per_instance;
     /* if there are more remote writers, you need to increase these limits */
     dr_qos.reader_resource_limits.max_remote_writers = 10;
     dr_qos.reader_resource_limits.max_remote_writers_per_instance = 10;
-    dr_qos.history.depth = 100;
+    dr_qos.history.depth = 4;
 
     dr_qos.reliability.kind = DDS_BEST_EFFORT_RELIABILITY_QOS;
     dr_qos.durability.kind = DDS_TRANSIENT_LOCAL_DURABILITY_QOS;
