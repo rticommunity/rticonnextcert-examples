@@ -66,6 +66,13 @@ ifneq ($(findstring Linux,$(RTIMEOS)),)
         CC = gcc
         DEFINES = -DRTI_UNIX -DRTI_LINUX -DRTI_POSIX_THREADS
 endif
+ifneq ($(findstring QOS,$(RTIMEARCH)),)
+        ARCH_LIBS= -lsocket
+        CFLAGS = -Y_gpp -std=c99
+        LFLAGS =
+        CC = $(QNX_HOST)/usr/bin/qcc -Vgcc/8.3.0,gcc_ntoaarch64le
+        DEFINES = -DRTI_UNIX
+endif
 DEFINES += -DRTI_PIL -DOSAPI_CC_DEF_H=osapi_cc_gcc.h -DRTI_CERT -DNDEBUG
 
 INCLUDES = -I$(RTIMEHOME)/include/rti_me/rti_me_psl -I$(RTIMEHOME)/include/rti_me
