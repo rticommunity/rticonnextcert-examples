@@ -1,4 +1,4 @@
-# (c) 2023 Copyright, Real-Time Innovations, Inc.  All rights reserved.
+# (c) 2023-2024 Copyright, Real-Time Innovations, Inc.  All rights reserved.
 #
 # RTI grants Licensee a license to use, modify, compile, and create derivative
 # works of the Software.  Licensee has the right to distribute object form
@@ -10,12 +10,14 @@
 
 cmake_minimum_required(VERSION 3.1)
 
-PROJECT(HelloWorld C)
+project(HelloWorld C)
 set(SOURCE_EXTENSION_C c)
 
-if ($ENV{RTIMEARCH} STREQUAL "x86_64leElfgcc7.3.0CERT-Linux4")
-    SET(PLATFORM_LIBS pthread rt)
-    add_definitions(-DRTI_UNIX -DRTI_LINUX -D_POSIX_C_SOURCE=199309L)
+add_compile_definitions(RTI_CERT)
+string(REGEX MATCH "Linux" IS_LINUX ${RTIME_TARGET_NAME})
+string(REGEX MATCH "QOS" IS_QOS ${RTIME_TARGET_NAME})
+if (IS_LINUX OR IS_QOS)
+    add_compile_definitions(_POSIX_C_SOURCE=199309L OSAPI_INCLUDE_POSIX)
 endif()
 
 set_property(GLOBAL PROPERTY RULE_MESSAGES OFF)
@@ -35,7 +37,6 @@ if (${CMAKE_BUILD_TYPE} MATCHES "[Rr]elease")
 else()
     set(RTI_LIB_SUFFIX "zd")
     set(RTI_DEBUG_BUILD TRUE)
-    #message(FATAL_ERROR "Connext Cert only supports the 'Release' build type")
 endif()
 
 set(IDL_GEN_C
@@ -49,10 +50,9 @@ set(IDL_GEN_H
     ${CMAKE_CURRENT_SOURCE_DIR}/HelloWorldSupport.h
 )
 
-SET(CERT_LIB_PIL ${RTI_LIB_PREFIX}${RTI_LIB_SUFFIX})
-SET(CERT_LIB_PSL ${RTI_LIB_PREFIX}${RTI_LIB_SUFFIX_PSL}${RTI_LIB_SUFFIX})
-SET(CERT_ZERO_COPY_LIBS ${RTI_LIB_PREFIX}_netiozcopy${RTI_LIB_SUFFIX})
-ADD_DEFINITIONS(-DRTI_CERT -DRTI_PIL)
+set(CERT_LIB_PIL ${RTI_LIB_PREFIX}${RTI_LIB_SUFFIX})
+set(CERT_LIB_PSL ${RTI_LIB_PREFIX}${RTI_LIB_SUFFIX_PSL}${RTI_LIB_SUFFIX})
+set(CERT_ZERO_COPY_LIBS ${RTI_LIB_PREFIX}_netiozcopy${RTI_LIB_SUFFIX})
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -63,9 +63,7 @@ link_directories(
     $ENV{RTIMEHOME}/lib/$ENV{RTIMEARCH}
     $ENV{RTIMEHOME}/lib/$ENV{RTIMEARCH}-$ENV{RTIMEOS}
 )
-message($ENV{RTIMEHOME}/lib/$ENV{RTIMEARCH})
-message($ENV{RTIMEHOME}/lib/$ENV{RTIMEARCH}-$ENV{RTIMEOS})
-message(${CMAKE_C_FLAGS})
+
 ################################################################################
 # HelloWorld_subscriber
 ################################################################################
