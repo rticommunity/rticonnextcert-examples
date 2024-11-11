@@ -58,7 +58,7 @@ Before compiling, make sure of the following:
     export RTIMEARCH=x86_64leElfgcc7.3.0CERT
     export RTIMEOS=Linux4
     export RTIMEHOME=/path/to/connext/cert
-    ${RTIMEHOME}/resource/scripts/rtime-make --target ${RTIMEARCH} -G "Unix Makefiles" --build -DRTIME_CERT=1 --config Release --source-dir . --delete
+    ${RTIMEHOME}/resource/scripts/rtime-make --target ${RTIMEARCH}-${RTIMEOS} -G "Unix Makefiles" --build -DRTIME_CERT=1 --config Release --source-dir . --delete
 
 ### Compiling For QNX
 
