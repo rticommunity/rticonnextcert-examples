@@ -49,16 +49,14 @@ This file contains the APIs for managing the HelloWorld type.
 Before compiling, make sure of the following:
 - The desired version of compiler and linker is in your `PATH` environment variable.
 - The environment variable `RTIMEHOME` is defined and that it points to Connext Cert installation directory.
-- The `RTIMEARCH` environment variable is set to the appropriate architecture: either `x86_64leElfgcc7.3.0CERT` or `armv8leElfqcc8.3.0CERT` for the current release. This denotes the "platform independent" (i.e. independent of the operating system) architecture.
-- The `RTIMEOS` environment variable should be set to the OS running on the platform: either `Linux4` or `QOS2.2.1` for this release.
+- When building for QoS, the `RTIMEARCH` environment variable should be set to the appropriate architecture: `armv8leElfqcc8.3.0CERT` for the current release. This denotes the "platform independent" (i.e. independent of the operating system) architecture.
+- When building for QOS, the `RTIMEOS` environment variable should be set to the OS running on the platform: `QOS2.2.1` for this release.
 
 ### Compiling For Linux
 
     cd <your project directory>
-    export RTIMEARCH=x86_64leElfgcc7.3.0CERT
-    export RTIMEOS=Linux4
     export RTIMEHOME=/path/to/connext/cert
-    ${RTIMEHOME}/resource/scripts/rtime-make --target ${RTIMEARCH}-${RTIMEOS} -G "Unix Makefiles" --build -DRTIME_CERT=1 --config Release --source-dir . --delete
+    ${RTIMEHOME}/resource/scripts/rtime-make --target $x86_64leElfgcc7.3.0CERT-Linux4 -G "Unix Makefiles" --build -DRTIME_CERT=1 --config Release --source-dir . --delete
 
 ### Compiling For QNX
 
