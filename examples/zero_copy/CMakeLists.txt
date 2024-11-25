@@ -26,6 +26,10 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/objs/${RTIME_TARG
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/objs/${RTIME_TARGET_NAME})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/objs/${RTIME_TARGET_NAME})
 
+# the following assumes a target name that is an architecture and OS separated
+# by a '-'
+string(REGEX MATCH ^[^-]* RTIMEARCH ${RTIME_TARGET_NAME})
+
 set(RTI_LIB_PREFIX "rti_me")
 set(RTI_LIB_SUFFIX_PSL "_psl")
 set(RTI_LIB_SUFFIX)
@@ -61,7 +65,7 @@ include_directories(
 )
 link_directories(
     $ENV{RTIMEHOME}/lib/$ENV{RTIMEARCH}
-    $ENV{RTIMEHOME}/lib/$ENV{RTIMEARCH}-$ENV{RTIMEOS}
+    $ENV{RTIMEHOME}/lib/${RTIME_TARGET_NAME}
 )
 
 ################################################################################

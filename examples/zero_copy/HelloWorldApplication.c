@@ -101,7 +101,7 @@ Application_create(
     RT_Registry_T *registry = NULL;
 
     /* UDP and Zero Copy related */
-    Udpv4_TransportProperties_T *udp_property = NULL;
+    UDPv4_TransportProperty_T *udp_property = NULL;
     struct ZCOPY_NotifInterfaceFactoryProperty notif_prop =
             ZCOPY_NotifInterfaceFactoryProperty_INITIALIZER;
     struct ZCOPY_NotifMechanismProperty notif_mech_prop =
@@ -142,7 +142,7 @@ Application_create(
         goto done;
     }
 
-    udp_property = UDPv4_TransportProperties_new();
+    udp_property = UDPv4_TransportProperty_new();
 
     /* This function takes the following arguments:
      * Param 1 is the UDP property
@@ -164,7 +164,7 @@ Application_create(
         printf("ERROR: Failed to add interface\n");
     }
 
-    if (!Udpv4_Interface_register(registry, MY_UDP_NAME, udp_property))
+    if (!UDPv4_Interface_register(registry, MY_UDP_NAME, udp_property))
     {
         printf("ERROR: Failed to register udp\n");
         goto done;
