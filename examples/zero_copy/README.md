@@ -56,7 +56,7 @@ Before compiling, make sure of the following:
 
     cd <your project directory>
     export RTIMEHOME=/path/to/connext/cert
-    ${RTIMEHOME}/resource/scripts/rtime-make --target $x86_64leElfgcc7.3.0CERT-Linux4 -G "Unix Makefiles" --build -DRTIME_CERT=1 --config Release --source-dir . --delete
+    ${RTIMEHOME}/resource/scripts/rtime-make --target x86_64leElfgcc7.3.0CERT-Linux4 -G "Unix Makefiles" --build -DRTIME_CERT=1 --config Release --source-dir . --delete
 
 ### Compiling For QNX
 
