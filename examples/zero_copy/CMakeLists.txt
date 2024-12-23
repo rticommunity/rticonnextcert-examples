@@ -64,7 +64,7 @@ include_directories(
     $ENV{RTIMEHOME}/include/rti_me
 )
 link_directories(
-    $ENV{RTIMEHOME}/lib/$ENV{RTIMEARCH}
+    $ENV{RTIMEHOME}/lib/${RTIMEARCH}
     $ENV{RTIMEHOME}/lib/${RTIME_TARGET_NAME}
 )
 
