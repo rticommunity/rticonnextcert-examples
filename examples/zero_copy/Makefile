@@ -21,7 +21,7 @@ LIBSUFFIX=z$(LIBSUFFIX_DEBUG)
 
 ARCH_LIBS= -lm
 
-ifneq ($(findstring QOS,$(RTIMEARCH)),)
+ifneq ($(findstring QOS,$(RTIMEOS)),)
         ARCH_LIBS= -lsocket
         CFLAGS = -Y_gpp -std=c99
         LFLAGS =
