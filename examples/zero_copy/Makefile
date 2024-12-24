@@ -23,7 +23,7 @@ ARCH_LIBS= -lm
 
 ifneq ($(findstring QOS,$(RTIMEOS)),)
         ARCH_LIBS= -lsocket
-        CFLAGS = -Y_gpp -std=c99
+        CFLAGS = -Y_gpp -fpic -std=c99
         LFLAGS =
         CC = $(QNX_HOST)/usr/bin/qcc -Vgcc/8.3.0,gcc_ntoaarch64le
         DEFINES = -DRTI_UNIX
