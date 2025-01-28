@@ -18,7 +18,6 @@
 #include "wh_sm/wh_sm_history.h"
 #include "rh_sm/rh_sm_history.h"
 #include "disc_dpse/disc_dpse_dpsediscovery.h"
-#include "netio_zcopy/posixNotifMechanism.h"
 
 #include "HelloWorld.h"
 #include "HelloWorldSupport.h"
@@ -102,7 +101,7 @@ publisher_main_w_args(
 
     dw_qos.durability.kind = DDS_TRANSIENT_LOCAL_DURABILITY_QOS;
     dw_qos.protocol.rtps_object_id = 100;
-   
+
     dw_listener.on_publication_matched = HelloWorldPublisher_on_publication_matched;
     datawriter = DDS_Publisher_create_datawriter(
             publisher,
@@ -122,7 +121,7 @@ publisher_main_w_args(
     rem_subscription_data.reliability.kind = dw_qos.reliability.kind;
     rem_subscription_data.durability.kind = dw_qos.durability.kind;
     rem_subscription_data.key.value[DDS_BUILTIN_TOPIC_KEY_OBJECT_ID] = 101;
-    
+
     if (DDS_RETCODE_OK !=
         DPSE_RemoteSubscription_assert(
                 application->participant,
@@ -174,7 +173,7 @@ main(int argc, char **argv)
     char *peer = NULL;
     long int time_between_writes = 1;
     long int count = 100;
-  
+
     for (int i = 1; i < argc; ++i)
     {
         if (!strcmp(argv[i], "-domain"))
@@ -185,19 +184,19 @@ main(int argc, char **argv)
                 printf("ERROR: -domain <domain_id>\n");
                 return EXIT_FAILURE;
             }
-            /* The value of a DDS Domain ID is held in a signed 32-bit integer, 
-             * and the range of valid values is in fact only in the hundreds.           
+            /* The value of a DDS Domain ID is held in a signed 32-bit integer,
+             * and the range of valid values is in fact only in the hundreds.
              * For that reason, this conversion is safe.
              */
             long l = strtol(argv[i], NULL, 0);
-            if (l <= INT_MAX) 
+            if (l <= INT_MAX)
             {
                 domain_id = (DDS_DomainId_t)l;
             }
-            else 
-            { 
+            else
+            {
                 return EXIT_FAILURE;
-            }          
+            }
         }
         else if (!strcmp(argv[i], "-peer"))
         {

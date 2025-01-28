@@ -1,4 +1,4 @@
-# (c) 2023 Copyright, Real-Time Innovations, Inc.  All rights reserved.
+# (c) 2023-2024 Copyright, Real-Time Innovations, Inc.  All rights reserved.
 #
 # RTI grants Licensee a license to use, modify, compile, and create derivative
 # works of the Software.  Licensee has the right to distribute object form
@@ -10,12 +10,14 @@
 
 cmake_minimum_required(VERSION 3.1)
 
-PROJECT(HelloWorld C)
+project(HelloWorld C)
 set(SOURCE_EXTENSION_C c)
 
-if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-    SET(PLATFORM_LIBS pthread rt)
-    add_definitions(-DRTI_UNIX -DRTI_LINUX)
+add_compile_definitions(RTI_CERT)
+string(REGEX MATCH "Linux" IS_LINUX ${RTIME_TARGET_NAME})
+string(REGEX MATCH "QOS" IS_QOS ${RTIME_TARGET_NAME})
+if (IS_LINUX OR IS_QOS)
+    add_compile_definitions(_POSIX_C_SOURCE=199309L OSAPI_INCLUDE_POSIX)
 endif()
 
 set_property(GLOBAL PROPERTY RULE_MESSAGES OFF)
@@ -24,7 +26,12 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/objs/${RTIME_TARG
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/objs/${RTIME_TARGET_NAME})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/objs/${RTIME_TARGET_NAME})
 
-set(RTI_LIB_PREFIX rti_me)
+# the following assumes a target name that is an architecture and OS separated
+# by a '-'
+string(REGEX MATCH ^[^-]* RTIMEARCH ${RTIME_TARGET_NAME})
+
+set(RTI_LIB_PREFIX "rti_me")
+set(RTI_LIB_SUFFIX_PSL "_psl")
 set(RTI_LIB_SUFFIX)
 
 if (${CMAKE_BUILD_TYPE} MATCHES "[Rr]elease")
@@ -32,7 +39,8 @@ if (${CMAKE_BUILD_TYPE} MATCHES "[Rr]elease")
     set(RTI_DEBUG_BUILD FALSE)
     add_definitions(-DNDEBUG)
 else()
-    message(FATAL_ERROR "Connext Cert only supports the 'Release' build type")
+    set(RTI_LIB_SUFFIX "zd")
+    set(RTI_DEBUG_BUILD TRUE)
 endif()
 
 set(IDL_GEN_C
@@ -46,27 +54,38 @@ set(IDL_GEN_H
     ${CMAKE_CURRENT_SOURCE_DIR}/HelloWorldSupport.h
 )
 
-SET(CERT_C_LIBS ${RTI_LIB_PREFIX}${RTI_LIB_SUFFIX})
-SET(CERT_ZERO_COPY_LIBS ${RTI_LIB_PREFIX}_netiozcopy${RTI_LIB_SUFFIX})
-ADD_DEFINITIONS(-DRTI_CERT)
+set(CERT_LIB_PIL ${RTI_LIB_PREFIX}${RTI_LIB_SUFFIX})
+set(CERT_LIB_PSL ${RTI_LIB_PREFIX}${RTI_LIB_SUFFIX_PSL}${RTI_LIB_SUFFIX})
+set(CERT_ZERO_COPY_LIBS ${RTI_LIB_PREFIX}_netiozcopy${RTI_LIB_SUFFIX})
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
+    $ENV{RTIMEHOME}/include/rti_me/rti_me_psl
     $ENV{RTIMEHOME}/include/rti_me
 )
-link_directories($ENV{RTIMEHOME}/lib/${RTIME_TARGET_NAME})
+link_directories(
+    $ENV{RTIMEHOME}/lib/${RTIMEARCH}
+    $ENV{RTIMEHOME}/lib/${RTIME_TARGET_NAME}
+)
 
 ################################################################################
 # HelloWorld_subscriber
 ################################################################################
-add_executable(HelloWorld_subscriber 
+add_executable(HelloWorld_subscriber
     ${CMAKE_CURRENT_SOURCE_DIR}/HelloWorld_subscriber.${SOURCE_EXTENSION_C}
     ${CMAKE_CURRENT_SOURCE_DIR}/HelloWorldApplication.${SOURCE_EXTENSION_C}
     ${IDL_GEN_C}
     ${IDL_GEN_H}
 )
 
-target_link_libraries(HelloWorld_subscriber ${CERT_ZERO_COPY_LIBS} ${CERT_C_LIBS} ${PLATFORM_LIBS})
+target_link_libraries(
+    HelloWorld_subscriber
+    ${CERT_LIB_PSL}
+    ${PLATFORM_LIBS}
+    ${CERT_LIB_PIL}
+    ${CERT_ZERO_COPY_LIBS}
+    ${CERT_LIB_PSL}
+)
 
 ################################################################################
 # HelloWorld_publisher
@@ -78,6 +97,12 @@ add_executable(HelloWorld_publisher
     ${IDL_GEN_H}
 )
 
-target_link_libraries(HelloWorld_publisher ${CERT_ZERO_COPY_LIBS} ${CERT_C_LIBS} ${PLATFORM_LIBS})
-
+target_link_libraries(
+    HelloWorld_publisher
+    ${CERT_LIB_PSL}
+    ${PLATFORM_LIBS}
+    ${CERT_LIB_PIL}
+    ${CERT_ZERO_COPY_LIBS}
+    ${CERT_LIB_PSL}
+)
 

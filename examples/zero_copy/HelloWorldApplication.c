@@ -21,11 +21,13 @@
 #include "HelloWorldSupport.h"
 #include "wh_sm/wh_sm_history.h"
 #include "rh_sm/rh_sm_history.h"
-#include "netio/netio_udp.h"
 #include "netio_zcopy/netio_zcopy.h"
 
-/* User's notification mechanism's implementation */
-#include "netio_zcopy/posixNotifMechanism.h"
+/* PSL implementations of Notif mechanism and UDP */
+#include "netio/netio_mynotif.h"
+#include "netio/netio_psl_udp.h"
+
+const char* const MY_UDP_NAME = "_udp";
 
 /* forward declarations (for gcc -Wmissing-declarations)*/
 void
@@ -90,40 +92,44 @@ Application_create(
         long int count)
 {
     DDS_ReturnCode_t retcode;
-    DDS_DomainParticipantFactory *factory = NULL;
+    DDS_Boolean success = DDS_BOOLEAN_FALSE;
+
+    DDS_DomainParticipantFactory *dp_factory = NULL;
     struct DDS_DomainParticipantFactoryQos dpf_qos =
             DDS_DomainParticipantFactoryQos_INITIALIZER;
     struct DDS_DomainParticipantQos dp_qos = DDS_DomainParticipantQos_INITIALIZER;
-    DDS_Boolean success = DDS_BOOLEAN_FALSE;
-    struct Application *application = NULL;
     RT_Registry_T *registry = NULL;
-    struct UDP_InterfaceFactoryProperty *udp_property = NULL;
+
+    /* UDP and Zero Copy related */
+    UDPv4_TransportProperty_T *udp_property = NULL;
     struct ZCOPY_NotifInterfaceFactoryProperty notif_prop =
             ZCOPY_NotifInterfaceFactoryProperty_INITIALIZER;
     struct ZCOPY_NotifMechanismProperty notif_mech_prop =
             ZCOPY_NotifMechanismProperty_INITIALIZER;
 
+    /* discovery related */
     struct DPSE_DiscoveryPluginProperty discovery_plugin_properties =
             DPSE_DiscoveryPluginProperty_INITIALIZER;
+    struct DDS_Duration_t my_lease = {5,0};
+    struct DDS_Duration_t my_assert_period = {2,0};
+    discovery_plugin_properties.participant_liveliness_lease_duration = my_lease;
+    discovery_plugin_properties.participant_liveliness_assert_period = my_assert_period;
 
-    /* Uncomment to increase verbosity level:
-       OSAPI_Log_set_verbosity(OSAPI_LOG_VERBOSITY_WARNING);
-     */
+    /* application specific */
+    struct Application *application = NULL;
+
     application = (struct Application *)malloc(sizeof(struct Application));
-
     if (application == NULL)
     {
-        printf("failed to allocate application\n");
+        printf("ERROR: Failed to malloc for application\n");
         goto done;
     }
 
     application->period = period;
     application->count = count;
 
-    factory = DDS_DomainParticipantFactory_get_instance();
-
-    registry = DDS_DomainParticipantFactory_get_registry(
-            DDS_DomainParticipantFactory_get_instance());
+    dp_factory = DDS_DomainParticipantFactory_get_instance();
+    registry = DDS_DomainParticipantFactory_get_registry(dp_factory);
 
     if (!RT_Registry_register(
                 registry,
@@ -132,46 +138,14 @@ Application_create(
                 NULL,
                 NULL))
     {
-        printf("failed to register rh\n");
+        printf("ERROR: Failed to register rh\n");
         goto done;
     }
 
-    /* Configure UDP transport's allowed interfaces */
-    if (!RT_Registry_unregister(registry, NETIO_DEFAULT_UDP_NAME, NULL, NULL))
-    {
-        printf("failed to unregister udp\n");
-        goto done;
-    }
-
-    udp_property = (struct UDP_InterfaceFactoryProperty *)malloc(
-            sizeof(struct UDP_InterfaceFactoryProperty));
-    if (udp_property == NULL)
-    {
-        printf("failed to allocate udp properties\n");
-        goto done;
-    }
-    *udp_property = UDP_INTERFACE_FACTORY_PROPERTY_DEFAULT;
-
-    /* For additional allowed interface(s), increase maximum and length, and
-       set interface below:
-    */
-    if (!DDS_StringSeq_set_maximum(&udp_property->allow_interface, 1))
-    {
-        printf("failed to set allow_interface maximum\n");
-        goto done;
-    }
-    if (!DDS_StringSeq_set_length(&udp_property->allow_interface, 1))
-    {
-        printf("failed to set allow_interface length\n");
-        goto done;
-    }
-
-    /* loopback interface */
-    *DDS_StringSeq_get_reference(&udp_property->allow_interface, 0) =
-            DDS_String_dup("lo");
+    udp_property = UDPv4_TransportProperty_new();
 
     /* This function takes the following arguments:
-     * Param 1 is the iftable in the UDP property
+     * Param 1 is the UDP property
      * Param 2 is the IP address of the interface in host order
      * Param 3 is the Netmask of the interface
      * Param 4 is the name of the interface
@@ -179,30 +153,26 @@ Application_create(
      *      UDP_INTERFACE_INTERFACE_UP_FLAG - Interface is up
      *      UDP_INTERFACE_INTERFACE_MULTICAST_FLAG - Interface supports multicast
      */
-    if (!UDP_InterfaceTable_add_entry(
-                &udp_property->if_table,
+    if (!UDPv4_InterfaceTable_add_entry(
+                udp_property,
                 0x7f000001,
                 0xff000000,
                 "lo",
-                UDP_INTERFACE_INTERFACE_UP_FLAG | UDP_INTERFACE_INTERFACE_MULTICAST_FLAG))
+                UDP_INTERFACE_INTERFACE_UP_FLAG |
+                UDP_INTERFACE_INTERFACE_MULTICAST_FLAG))
     {
-        printf("failed to add interface\n");
+        printf("ERROR: Failed to add interface\n");
     }
 
-    if (!RT_Registry_register(
-                registry,
-                NETIO_DEFAULT_UDP_NAME,
-                UDP_InterfaceFactory_get_interface(),
-                (struct RT_ComponentFactoryProperty *)udp_property,
-                NULL))
+    if (!UDPv4_Interface_register(registry, MY_UDP_NAME, udp_property))
     {
-        printf("failed to register udp\n");
+        printf("ERROR: Failed to register udp\n");
         goto done;
     }
 
     if (!NDDS_Transport_ZeroCopy_initialize(registry, NULL, NULL))
     {
-        printf("failed to initialize zero copy\n");
+        printf("ERROR: Failed to initialize zero copy\n");
         goto done;
     }
 
@@ -211,13 +181,13 @@ Application_create(
     notif_prop.max_samples_per_notif = 1;
     if (!ZCOPY_NotifMechanism_register(registry, NETIO_DEFAULT_NOTIF_NAME, &notif_prop))
     {
-        printf("failed to register notif\n");
+        printf("ERROR: Failed to register notif\n");
         goto done;
     }
 
-    DDS_DomainParticipantFactory_get_qos(factory, &dpf_qos);
+    DDS_DomainParticipantFactory_get_qos(dp_factory, &dpf_qos);
     dpf_qos.entity_factory.autoenable_created_entities = DDS_BOOLEAN_FALSE;
-    DDS_DomainParticipantFactory_set_qos(factory, &dpf_qos);
+    DDS_DomainParticipantFactory_set_qos(dp_factory, &dpf_qos);
 
     if (peer == NULL)
     {
@@ -231,38 +201,38 @@ Application_create(
                 &discovery_plugin_properties._parent,
                 NULL))
     {
-        printf("failed to register dpse\n");
+        printf("ERROR: Failed to register dpse\n");
         goto done;
     }
 
     if (!RT_ComponentFactoryId_set_name(&dp_qos.discovery.discovery.name, "dpse"))
     {
-        printf("failed to set discovery plugin name\n");
+        printf("ERROR: Failed to set discovery plugin name\n");
         goto done;
     }
 
     if (!DDS_StringSeq_set_maximum(&dp_qos.transports.enabled_transports, 2))
     {
-        printf("failed to set transports.enabled_transports maximum\n");
+        printf("ERROR: Failed to set transports.enabled_transports maximum\n");
         goto done;
     }
     if (!DDS_StringSeq_set_length(&dp_qos.transports.enabled_transports, 2))
     {
-        printf("failed to set transports.enabled_transports length\n");
+        printf("ERROR: Failed to set transports.enabled_transports length\n");
         goto done;
     }
     /* UDP and Notification are enabled*/
     *DDS_StringSeq_get_reference(&dp_qos.transports.enabled_transports, 0) =
             DDS_String_dup("notif");
     *DDS_StringSeq_get_reference(&dp_qos.transports.enabled_transports, 1) =
-            DDS_String_dup(NETIO_DEFAULT_UDP_NAME);
-    
+            DDS_String_dup(MY_UDP_NAME);
+
     /* Discovery takes place over UDP */
     DDS_StringSeq_set_maximum(&dp_qos.discovery.enabled_transports, 1);
     DDS_StringSeq_set_length(&dp_qos.discovery.enabled_transports, 1);
     *DDS_StringSeq_get_reference(&dp_qos.discovery.enabled_transports, 0) =
             DDS_String_dup("_udp://");
-    
+
     /* User data uses Notification Transport */
     DDS_StringSeq_set_maximum(&dp_qos.user_traffic.enabled_transports, 1);
     DDS_StringSeq_set_length(&dp_qos.user_traffic.enabled_transports, 1);
@@ -290,7 +260,7 @@ Application_create(
     strcpy(dp_qos.participant_name.name, local_participant_name);
 
     application->participant = DDS_DomainParticipantFactory_create_participant(
-            factory,
+            dp_factory,
             domain_id,
             &dp_qos,
             NULL,
@@ -298,17 +268,18 @@ Application_create(
 
     if (application->participant == NULL)
     {
-        printf("failed to create participant\n");
+        printf("ERROR: Failed to create participant\n");
         goto done;
     }
 
-    sprintf(application->type_name, "HelloWorld");
+    strncpy(application->type_name, HelloWorldTypeSupport_get_type_name(),
+            strlen(HelloWorldTypeSupport_get_type_name()));
     retcode = HelloWorldTypeSupport_register_type(
             application->participant,
             application->type_name);
     if (retcode != DDS_RETCODE_OK)
     {
-        printf("failed to register type: %s\n", "test_type");
+        printf("ERROR: Failed to register type: %s\n", "test_type");
         goto done;
     }
 
@@ -327,7 +298,7 @@ Application_create(
 
     if (application->topic == NULL)
     {
-        printf("topic == NULL\n");
+        printf("ERROR: topic == NULL\n");
         goto done;
     }
 
@@ -336,7 +307,7 @@ Application_create(
             remote_participant_name);
     if (retcode != DDS_RETCODE_OK)
     {
-        printf("failed to assert remote participant\n");
+        printf("ERROR: Failed to assert remote participant\n");
         goto done;
     }
 
@@ -368,7 +339,7 @@ Application_enable(struct Application *application)
     retcode = DDS_Entity_enable(entity);
     if (retcode != DDS_RETCODE_OK)
     {
-        printf("failed to enable entity\n");
+        printf("ERROR: Failed to enable entity\n");
     }
 
     return retcode;
