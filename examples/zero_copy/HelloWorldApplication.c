@@ -191,7 +191,7 @@ Application_create(
 
     if (peer == NULL)
     {
-        peer = "127.0.0.1"; /* default is loopback */
+        peer = "_udp://127.0.0.1"; /* default is loopback */
     }
 
     if (!RT_Registry_register(
